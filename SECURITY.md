@@ -18,7 +18,7 @@ SPDX-FileCopyrightText: 2025 The Linux Foundation
 
 ### Preferred Method: Private Security Advisory
 
-1. Go to the [Security Advisories](https://github.com/askb/tailscale-openstack-bastion-action/security/advisories) page
+1. Go to the [Security Advisories](https://github.com/lfreleng-actions/tailscale-openstack-bastion-action/security/advisories) page
 2. Click "Report a vulnerability"
 3. Provide detailed information about the vulnerability
 

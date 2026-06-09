@@ -26,7 +26,7 @@ This project follows the [Linux Foundation Code of Conduct](https://www.linuxfou
 
 1. Fork the repository
 2. Clone your fork: `git clone https://github.com/YOUR-USERNAME/tailscale-openstack-bastion-action.git`
-3. Add upstream remote: `git remote add upstream https://github.com/askb/tailscale-openstack-bastion-action.git`
+3. Add upstream remote: `git remote add upstream https://github.com/lfreleng-actions/tailscale-openstack-bastion-action.git`
 4. Create a feature branch: `git checkout -b feature/your-feature-name`
 
 ## Development Setup
@@ -248,7 +248,7 @@ Releases are automated via GitHub Actions:
 ## Getting Help
 
 - **Documentation:** Check [docs/](docs/) directory
-- **Issues:** Search [existing issues](https://github.com/askb/tailscale-openstack-bastion-action/issues)
+- **Issues:** Search [existing issues](https://github.com/lfreleng-actions/tailscale-openstack-bastion-action/issues)
 - **Discussions:** Use GitHub Discussions for questions
 
 ## Recognition
