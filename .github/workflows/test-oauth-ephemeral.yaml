@@ -46,6 +46,13 @@ permissions:
 jobs:
   prepare:
     name: Setup Bastion with OAuth Ephemeral Keys
+    # Skip on fork PRs (no access to OpenStack/Tailscale secrets); still
+    # runs on push to the default branch, workflow_dispatch, and
+    # same-repo PRs where secrets are available.
+    if: >-
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     outputs:
@@ -225,7 +232,11 @@ jobs:
     name: Teardown Bastion
     needs: [prepare, test-connectivity]
     runs-on: ubuntu-24.04
-    if: always()
+    if: >-
+      always() &&
+      (github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      github.event.pull_request.head.repo.full_name == github.repository)
     timeout-minutes: 10
 
     steps:
