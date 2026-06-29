@@ -25,10 +25,18 @@ concurrency:
 env:
   BASTION_NAME: "test-error-bastion-${{ github.run_id }}"
 
+permissions:
+  contents: read
+
 jobs:
   test-timeout-scenario:
     name: Test Timeout Scenario
     runs-on: ubuntu-latest
+    # Secrets are consumed here; declare a dedicated environment. This
+    # workflow is workflow_dispatch-only (manually triggered by a
+    # maintainer), so it uses the unprotected 'integration-auto'
+    # environment; no fork-PR approval gate applies here.
+    environment: integration-auto
     timeout-minutes: 30
     if: inputs.test_scenario == 'timeout'
 
@@ -40,6 +48,8 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
       - name: Setup Tailscale on Runner
         uses: tailscale/github-action@306e68a486fd2350f2bfc3b19fcd143891a4a2d8 # v4.1.2
@@ -85,6 +95,13 @@ jobs:
           fi
 
       - name: Verify Auto-Cleanup After Timeout
+        env:
+          # Secrets routed via env to avoid template injection
+          OS_AUTH_URL: ${{ secrets.OPENSTACK_AUTH_URL }}
+          OS_PROJECT_ID: ${{ secrets.OPENSTACK_PROJECT_ID }}
+          OS_USERNAME: ${{ secrets.OPENSTACK_USERNAME }}
+          OPENSTACK_PASSWORD_B64: ${{ secrets.OPENSTACK_PASSWORD_B64 }}
+          OS_REGION_NAME: ${{ secrets.OPENSTACK_REGION }}
         run: |
           echo "Verifying bastion was cleaned up after timeout..."
 
@@ -92,14 +109,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install python-openstackclient
 
-          # Configure OpenStack credentials
-          export OS_AUTH_URL="${{ secrets.OPENSTACK_AUTH_URL }}"
-          export OS_PROJECT_ID="${{ secrets.OPENSTACK_PROJECT_ID }}"
-          export OS_USERNAME="${{ secrets.OPENSTACK_USERNAME }}"
-          PASSWORD_B64="${{ secrets.OPENSTACK_PASSWORD_B64 }}"
+          # Configure OpenStack credentials (provided via job env)
           export OS_PASSWORD
-          OS_PASSWORD=$(echo "${PASSWORD_B64}" | base64 -d)
-          export OS_REGION_NAME="${{ secrets.OPENSTACK_REGION }}"
+          OS_PASSWORD=$(printf '%s' "${OPENSTACK_PASSWORD_B64}" | base64 -d)
           export OS_IDENTITY_API_VERSION="3"
           export OS_USER_DOMAIN_NAME="Default"
           export OS_PROJECT_DOMAIN_NAME="Default"
@@ -108,31 +120,40 @@ jobs:
           sleep 10
 
           # Check if bastion was cleaned up
-          if openstack server show "${{ env.BASTION_NAME }}" &>/dev/null; then
+          if openstack server show "${BASTION_NAME}" &>/dev/null; then
             echo "⚠️ WARNING: Bastion still exists - cleaning up manually"
-            openstack server delete --wait "${{ env.BASTION_NAME }}" || true
+            openstack server delete --wait "${BASTION_NAME}" || true
           else
             echo "✅ Bastion was automatically cleaned up after timeout"
           fi
 
       - name: Generate Summary
         if: always()
+        env:
+          # Step outcome routed via env to avoid template injection
+          SETUP_RESULT: ${{ steps.setup.outcome == 'failure' && '✅ Pass' || '❌ Fail' }}
+          SETUP_OUTCOME: ${{ steps.setup.outcome }}
         run: |
           {
             echo "## Timeout Test Summary"
             echo ""
             echo "- **Test Scenario:** Timeout with short wait period (30s)"
             echo "- **Expected:** Action fails and auto-cleans bastion"
-            echo "- **Result:** ${{ steps.setup.outcome == 'failure' && '✅ Pass' || '❌ Fail' }}"
+            echo "- **Result:** ${SETUP_RESULT}"
             echo ""
             echo "### Details"
-            echo "- Bastion setup outcome: ${{ steps.setup.outcome }}"
+            echo "- Bastion setup outcome: ${SETUP_OUTCOME}"
             echo "- Auto-cleanup verified"
           } >> "$GITHUB_STEP_SUMMARY"
 
   test-invalid-credentials:
     name: Test Invalid Credentials
     runs-on: ubuntu-latest
+    # Secrets are consumed here; declare a dedicated environment. This
+    # workflow is workflow_dispatch-only (manually triggered by a
+    # maintainer), so it uses the unprotected 'integration-auto'
+    # environment; no fork-PR approval gate applies here.
+    environment: integration-auto
     timeout-minutes: 30
     if: inputs.test_scenario == 'invalid_credentials'
 
@@ -144,6 +165,8 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
       - name: Test with Invalid OpenStack Credentials
         id: setup
@@ -171,18 +194,26 @@ jobs:
 
       - name: Generate Summary
         if: always()
+        env:
+          # Step outcome routed via env to avoid template injection
+          SETUP_RESULT: ${{ steps.setup.outcome == 'failure' && '✅ Pass' || '❌ Fail' }}
         run: |
           {
             echo "## Invalid Credentials Test Summary"
             echo ""
             echo "- **Test Scenario:** Invalid OpenStack credentials"
             echo "- **Expected:** Action fails gracefully"
-            echo "- **Result:** ${{ steps.setup.outcome == 'failure' && '✅ Pass' || '❌ Fail' }}"
+            echo "- **Result:** ${SETUP_RESULT}"
           } >> "$GITHUB_STEP_SUMMARY"
 
   test-missing-tailscale-auth:
     name: Test Missing Tailscale Auth
     runs-on: ubuntu-latest
+    # Secrets are consumed here; declare a dedicated environment. This
+    # workflow is workflow_dispatch-only (manually triggered by a
+    # maintainer), so it uses the unprotected 'integration-auto'
+    # environment; no fork-PR approval gate applies here.
+    environment: integration-auto
     timeout-minutes: 30
     if: inputs.test_scenario == 'network_error'
 
@@ -194,6 +225,8 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
       - name: Test with Missing Tailscale Credentials
         id: setup
@@ -220,11 +253,14 @@ jobs:
 
       - name: Generate Summary
         if: always()
+        env:
+          # Step outcome routed via env to avoid template injection
+          SETUP_RESULT: ${{ steps.setup.outcome == 'failure' && '✅ Pass' || '❌ Fail' }}
         run: |
           {
             echo "## Missing Tailscale Auth Test Summary"
             echo ""
             echo "- **Test Scenario:** Missing Tailscale authentication"
             echo "- **Expected:** Action fails with clear error message"
-            echo "- **Result:** ${{ steps.setup.outcome == 'failure' && '✅ Pass' || '❌ Fail' }}"
+            echo "- **Result:** ${SETUP_RESULT}"
           } >> "$GITHUB_STEP_SUMMARY"

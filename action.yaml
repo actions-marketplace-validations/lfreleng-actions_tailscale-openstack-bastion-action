@@ -227,6 +227,9 @@ runs:
         BASTION_SSH_KEY: ${{ inputs.bastion_ssh_key }}
         BASTION_WAIT_TIMEOUT: ${{ inputs.bastion_wait_timeout }}
         DEBUG_MODE: ${{ inputs.debug_mode }}
+        # Workflow context routed via env to avoid template injection
+        RUN_ID: ${{ github.run_id }}
+        ACTION_PATH: ${{ github.action_path }}
       run: |
         set -euo pipefail
 
@@ -235,11 +238,11 @@ runs:
         export OS_PASSWORD="${PASSWORD}"
 
         # Set bastion name
-        BASTION_NAME="${BASTION_NAME:-bastion-gh-${{ github.run_id }}}"
+        BASTION_NAME="${BASTION_NAME:-bastion-gh-${RUN_ID}}"
         echo "bastion_name=${BASTION_NAME}" >> "${GITHUB_OUTPUT}"
 
         # Run setup script
-        "${{ github.action_path }}/scripts/setup-bastion.sh"
+        "${ACTION_PATH}/scripts/setup-bastion.sh"
 
     - name: Get bastion IP
       if: inputs.operation == 'setup'
@@ -258,6 +261,8 @@ runs:
         # Bastion configuration
         BASTION_NAME: ${{ steps.create-bastion.outputs.bastion_name }}
         BASTION_WAIT_TIMEOUT: ${{ inputs.bastion_wait_timeout }}
+        # Workflow context routed via env to avoid template injection
+        ACTION_PATH: ${{ github.action_path }}
       run: |
         set -euo pipefail
 
@@ -289,7 +294,7 @@ runs:
         # Trigger automatic cleanup on timeout
         if [[ -n "${BASTION_NAME}" ]]; then
           echo "Triggering automatic cleanup due to timeout..."
-          "${{ github.action_path }}/scripts/cleanup-bastion.sh" "${BASTION_NAME}" || true
+          "${ACTION_PATH}/scripts/cleanup-bastion.sh" "${BASTION_NAME}" || true
         fi
         exit 1
 
@@ -309,6 +314,9 @@ runs:
         # Bastion configuration
         BASTION_NAME: ${{ inputs.bastion_name }}
         DEBUG_MODE: ${{ inputs.debug_mode }}
+        # Workflow context routed via env to avoid template injection
+        RUN_ID: ${{ github.run_id }}
+        ACTION_PATH: ${{ github.action_path }}
       run: |
         set -euo pipefail
 
@@ -316,10 +324,10 @@ runs:
         PASSWORD=$(printf '%s' "${OS_PASSWORD}" | base64 -d)
         export OS_PASSWORD="${PASSWORD}"
 
-        BASTION_NAME="${BASTION_NAME:-bastion-gh-${{ github.run_id }}}"
+        BASTION_NAME="${BASTION_NAME:-bastion-gh-${RUN_ID}}"
 
         # Run cleanup script
-        "${{ github.action_path }}/scripts/cleanup-bastion.sh" "${BASTION_NAME}"
+        "${ACTION_PATH}/scripts/cleanup-bastion.sh" "${BASTION_NAME}"
 
     - name: Set operation status
       if: always()
